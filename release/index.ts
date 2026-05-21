@@ -1,8 +1,6 @@
 /// <reference types="node" />
 import { fileURLToPath } from "node:url";
-import flag, { flags, type Flag } from "./flag.js";
-
-const { is } = flag;
+import { flag, flags, is, type Flag } from "./flag.js";
 
 export class InvalidOptionError extends Error {
   public readonly name = "InvalidOptionError";

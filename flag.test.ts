@@ -1,5 +1,5 @@
 import { describe, test, expect, expectTypeOf } from "vitest";
-import flag, { flags, type Flag } from "./release/flag";
+import { flag, flags, is, type Flag } from "./release/flag";
 
 describe(flag.name, () => {
   describe("boolean", () => {
@@ -19,7 +19,7 @@ describe(flag.name, () => {
         multiple: false,
         default: false,
       });
-      expect(flag.is(result, "boolean")).toBe(true);
+      expect(is(result, "boolean")).toBe(true);
     });
 
     test("no shorthand with long negation", () => {
@@ -34,7 +34,7 @@ describe(flag.name, () => {
         default: false,
         negation: { longform: negation.longform },
       });
-      expect(flag.is(result, "boolean")).toBe(true);
+      expect(is(result, "boolean")).toBe(true);
     });
 
     test("shorthand, omit negation", () => {
@@ -49,7 +49,7 @@ describe(flag.name, () => {
         multiple: false,
         default: false,
       });
-      expect(flag.is(result, "boolean")).toBe(true);
+      expect(is(result, "boolean")).toBe(true);
     });
 
     test("shorthand with long negation", () => {
@@ -70,7 +70,7 @@ describe(flag.name, () => {
         default: false,
         negation: { longform: negation.longform },
       });
-      expect(flag.is(result, "boolean")).toBe(true);
+      expect(is(result, "boolean")).toBe(true);
     });
 
     test("shorthand with long negation", () => {
@@ -89,7 +89,7 @@ describe(flag.name, () => {
         default: false,
         negation: negation,
       });
-      expect(flag.is(result, "boolean")).toBe(true);
+      expect(is(result, "boolean")).toBe(true);
     });
   });
 
@@ -110,7 +110,7 @@ describe(flag.name, () => {
         multiple: false,
         default: _default,
       });
-      expect(flag.is(result, "number")).toBe(true);
+      expect(is(result, "number")).toBe(true);
     });
 
     test("shorthand", () => {
@@ -125,7 +125,7 @@ describe(flag.name, () => {
         multiple: false,
         default: _default,
       });
-      expect(flag.is(result, "number")).toBe(true);
+      expect(is(result, "number")).toBe(true);
     });
 
     test("multi, no shorthand", () => {
@@ -139,7 +139,7 @@ describe(flag.name, () => {
         multiple: true,
         default: _default,
       });
-      expect(flag.is(result, "number")).toBe(true);
+      expect(is(result, "number")).toBe(true);
     });
 
     test("multi, shorthand", () => {
@@ -154,7 +154,7 @@ describe(flag.name, () => {
         multiple: true,
         default: _default,
       });
-      expect(flag.is(result, "number")).toBe(true);
+      expect(is(result, "number")).toBe(true);
     });
   });
 
@@ -180,7 +180,7 @@ describe(flag.name, () => {
         multiple: false,
         options: options,
       });
-      expect(flag.is(result, "string")).toBe(true);
+      expect(is(result, "string")).toBe(true);
     });
 
     test("no shorthand, default", () => {
@@ -199,7 +199,7 @@ describe(flag.name, () => {
         options: options,
         default: _default,
       });
-      expect(flag.is(result, "string")).toBe(true);
+      expect(is(result, "string")).toBe(true);
     });
 
     test("shorthand, no default", () => {
@@ -218,7 +218,7 @@ describe(flag.name, () => {
         multiple: false,
         options: options,
       });
-      expect(flag.is(result, "string")).toBe(true);
+      expect(is(result, "string")).toBe(true);
     });
 
     test("shorthand, default", () => {
@@ -238,7 +238,7 @@ describe(flag.name, () => {
         options: options,
         default: _default,
       });
-      expect(flag.is(result, "string")).toBe(true);
+      expect(is(result, "string")).toBe(true);
     });
 
     test("multi, no shorthand, no default", () => {
@@ -256,7 +256,7 @@ describe(flag.name, () => {
         multiple: true,
         options: options,
       });
-      expect(flag.is(result, "string")).toBe(true);
+      expect(is(result, "string")).toBe(true);
     });
 
     test("multi, no shorthand, default", () => {
@@ -275,7 +275,7 @@ describe(flag.name, () => {
         options: options,
         default: _default,
       });
-      expect(flag.is(result, "string")).toBe(true);
+      expect(is(result, "string")).toBe(true);
     });
 
     test("multi, shorthand, no default", () => {
@@ -294,7 +294,7 @@ describe(flag.name, () => {
         multiple: true,
         options: options,
       });
-      expect(flag.is(result, "string")).toBe(true);
+      expect(is(result, "string")).toBe(true);
     });
 
     test("multi, shorthand, default", () => {
@@ -314,7 +314,7 @@ describe(flag.name, () => {
         options: options,
         default: _default,
       });
-      expect(flag.is(result, "string")).toBe(true);
+      expect(is(result, "string")).toBe(true);
     });
 
     test("multi, no shorthand, array default", () => {
@@ -379,7 +379,7 @@ describe(flag.name, () => {
         multiple: false,
         options: options,
       });
-      expect(flag.is(result, "number")).toBe(true);
+      expect(is(result, "number")).toBe(true);
     });
 
     test("no shorthand, default", () => {
@@ -398,7 +398,7 @@ describe(flag.name, () => {
         options: options,
         default: _default,
       });
-      expect(flag.is(result, "number")).toBe(true);
+      expect(is(result, "number")).toBe(true);
     });
 
     test("shorthand, no default", () => {
@@ -417,7 +417,7 @@ describe(flag.name, () => {
         multiple: false,
         options: options,
       });
-      expect(flag.is(result, "number")).toBe(true);
+      expect(is(result, "number")).toBe(true);
     });
 
     test("shorthand, default", () => {
@@ -437,7 +437,7 @@ describe(flag.name, () => {
         options: options,
         default: _default,
       });
-      expect(flag.is(result, "number")).toBe(true);
+      expect(is(result, "number")).toBe(true);
     });
 
     test("multi, no shorthand, no default", () => {
@@ -455,7 +455,7 @@ describe(flag.name, () => {
         multiple: true,
         options: options,
       });
-      expect(flag.is(result, "number")).toBe(true);
+      expect(is(result, "number")).toBe(true);
     });
 
     test("multi, no shorthand, default", () => {
@@ -474,7 +474,7 @@ describe(flag.name, () => {
         options: options,
         default: _default,
       });
-      expect(flag.is(result, "number")).toBe(true);
+      expect(is(result, "number")).toBe(true);
     });
 
     test("multi, shorthand, no default", () => {
@@ -493,7 +493,7 @@ describe(flag.name, () => {
         multiple: true,
         options: options,
       });
-      expect(flag.is(result, "number")).toBe(true);
+      expect(is(result, "number")).toBe(true);
     });
 
     test("multi, shorthand, default", () => {
@@ -513,7 +513,7 @@ describe(flag.name, () => {
         options: options,
         default: _default,
       });
-      expect(flag.is(result, "number")).toBe(true);
+      expect(is(result, "number")).toBe(true);
     });
 
     test("multi, no shorthand, array default", () => {
@@ -572,7 +572,7 @@ describe(flag.name, () => {
         description: description,
         multiple: false,
       });
-      expect(flag.is(result, "string")).toBe(true);
+      expect(is(result, "string")).toBe(true);
     });
 
     test("no shorthand, default", () => {
@@ -586,7 +586,7 @@ describe(flag.name, () => {
         multiple: false,
         default: _default,
       });
-      expect(flag.is(result, "string")).toBe(true);
+      expect(is(result, "string")).toBe(true);
     });
 
     test("shorthand, no default", () => {
@@ -600,7 +600,7 @@ describe(flag.name, () => {
         shorthand: shorthand,
         multiple: false,
       });
-      expect(flag.is(result, "string")).toBe(true);
+      expect(is(result, "string")).toBe(true);
     });
 
     test("shorthand, default", () => {
@@ -615,7 +615,7 @@ describe(flag.name, () => {
         multiple: false,
         default: _default,
       });
-      expect(flag.is(result, "string")).toBe(true);
+      expect(is(result, "string")).toBe(true);
     });
 
     test("multi, no shorthand, no default", () => {
@@ -628,7 +628,7 @@ describe(flag.name, () => {
         description: description,
         multiple: true,
       });
-      expect(flag.is(result, "string")).toBe(true);
+      expect(is(result, "string")).toBe(true);
     });
 
     test("multi, no shorthand, default", () => {
@@ -642,7 +642,7 @@ describe(flag.name, () => {
         multiple: true,
         default: _default,
       });
-      expect(flag.is(result, "string")).toBe(true);
+      expect(is(result, "string")).toBe(true);
     });
 
     test("multi, shorthand, no default", () => {
@@ -656,7 +656,7 @@ describe(flag.name, () => {
         shorthand: shorthand,
         multiple: true,
       });
-      expect(flag.is(result, "string")).toBe(true);
+      expect(is(result, "string")).toBe(true);
     });
 
     test("multi, shorthand, default", () => {
@@ -671,7 +671,7 @@ describe(flag.name, () => {
         multiple: true,
         default: _default,
       });
-      expect(flag.is(result, "string")).toBe(true);
+      expect(is(result, "string")).toBe(true);
     });
   });
 });

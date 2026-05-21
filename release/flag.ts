@@ -52,12 +52,7 @@ namespace Arguments {
   export type Plural = readonly [
     Name,
     Description,
-    ...(
-      | []
-      | [PluralDefault]
-      | [Options]
-      | [Options, PluralDefault]
-    ),
+    ...([] | [PluralDefault] | [Options] | [Options, PluralDefault]),
   ];
 }
 
@@ -518,35 +513,33 @@ const build = (
   return { ...base, ...(third !== undefined && { default: third }) } as Flag;
 };
 
-export default Object.assign(flag, {
-  is: <const T extends "string" | "number" | "boolean">(
-    flag: Flag,
-    type: T,
-  ): flag is Flag<
-    T extends "string" ? string : T extends "number" ? number : boolean
-  > => {
-    if (flag.default !== undefined) {
-      // multi flags may carry an array of seed values — sample the first element.
-      const sample = Array.isArray(flag.default) ? flag.default[0] : flag.default;
-      if (sample !== undefined)
-        switch (type) {
-          case "boolean":
-            return typeof sample === "boolean";
-          case "number":
-            return typeof sample === "number";
-          case "string":
-            return typeof sample === "string";
-        }
-    }
+export const is = <const T extends "string" | "number" | "boolean">(
+  flag: Flag,
+  type: T,
+): flag is Flag<
+  T extends "string" ? string : T extends "number" ? number : boolean
+> => {
+  if (flag.default !== undefined) {
+    // multi flags may carry an array of seed values — sample the first element.
+    const sample = Array.isArray(flag.default) ? flag.default[0] : flag.default;
+    if (sample !== undefined)
+      switch (type) {
+        case "boolean":
+          return typeof sample === "boolean";
+        case "number":
+          return typeof sample === "number";
+        case "string":
+          return typeof sample === "string";
+      }
+  }
 
-    if (type === "boolean") return false;
+  if (type === "boolean") return false;
 
-    if (!("options" in flag)) return type === "string";
+  if (!("options" in flag)) return type === "string";
 
-    return (
-      Array.isArray(flag.options) &&
-      flag.options.length > 0 &&
-      typeof flag.options[0] === type
-    );
-  },
-});
+  return (
+    Array.isArray(flag.options) &&
+    flag.options.length > 0 &&
+    typeof flag.options[0] === type
+  );
+};

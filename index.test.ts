@@ -1,5 +1,5 @@
 import { describe, test, expect, expectTypeOf } from "vitest";
-import flag, { flags } from "./release/flag";
+import { flag, flags } from "./release/flag";
 import { InvalidOptionError, main, parse } from "./release";
 
 describe(parse.name, () => {
