@@ -46,7 +46,13 @@ export namespace Result {
 
   export type Cli<Flags extends Flag[]> = {
     [F in Flags[number] as F["longform"]]: _Flag<F>;
-  } & { readonly [n: number]: string | undefined } & Iterable<string>;
+  } & { readonly [n: number]: string | undefined } & Iterable<string> & {
+      /**
+       * Get help text for the CLI, including descriptions of all flags and their default values.
+       * @returns A string containing the help text.
+       */
+      help: () => string;
+    };
 }
 
 export const help = Object.assign(
@@ -54,16 +60,14 @@ export const help = Object.assign(
     const scriptName = process.argv[1]?.split("/").pop() ?? "script";
     const rows = [...flags.map(help.flag), help.message()];
     const pad = Math.max(...rows.map(([left]) => left.length));
-    console.log(
-      [
-        `Usage: ${scriptName} [options] [args...]`,
-        "",
-        description,
-        "",
-        "Options:",
-        ...rows.map(([left, right]) => `  ${left.padEnd(pad)}  ${right}`),
-      ].join("\n"),
-    );
+    return [
+      `Usage: ${scriptName} [options] [args...]`,
+      "",
+      description,
+      "",
+      "Options:",
+      ...rows.map(([left, right]) => `  ${left.padEnd(pad)}  ${right}`),
+    ].join("\n");
   },
   {
     spacing: { shorthand: " ".repeat(3) },
@@ -86,10 +90,7 @@ export const help = Object.assign(
       return [left, `${flag.description}${defaultSuffix}`];
     },
 
-    message: (): [string, string] => [
-      `${help.spacing.shorthand} -h, --help`,
-      "Show this help message",
-    ],
+    message: (): [string, string] => [`-h, --help`, "Show this help message"],
 
     boolean: (flag: Flag<boolean>) => {
       const positive = flag.shorthand
@@ -270,9 +271,14 @@ const applyDefaults = (
   }
 };
 
-const withPositional = <T extends object>(values: T, positional: string[]): T =>
+const withPositional = <T extends object>(
+  values: T,
+  positional: string[],
+  help: () => string,
+): T =>
   new Proxy(values, {
     get(target, prop) {
+      if (prop === "help") return help;
       if (typeof prop === "string" && /^\d+$/.test(prop))
         return positional[Number(prop)];
       if (prop === Symbol.iterator)
@@ -287,13 +293,17 @@ export const main = <Flags extends Flag[]>(
   flags: [...Flags],
 ): Result.Cli<Flags> => {
   if (argv.includes("--help") || argv.includes("-h")) {
-    help(description, flags);
+    console.log(help(description, flags));
     process.exit(0);
   }
 
   const { values, positional } = parse(argv, flags);
   applyDefaults(values, flags);
-  return withPositional(values as Result.Cli<Flags>, positional);
+  return withPositional(
+    values as Result.Cli<Flags>,
+    positional,
+    help.bind(null, description, flags),
+  );
 };
 
 export const cli = Object.assign(

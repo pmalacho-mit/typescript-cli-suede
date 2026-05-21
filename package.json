@@ -10,6 +10,7 @@
     "test": "vitest"
   },
   "devDependencies": {
+    "tsx": "^4.22.3",
     "typescript": "~6.0.2",
     "vite": "^8.0.12",
     "vitest": "^4.1.7"

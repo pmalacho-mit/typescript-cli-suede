@@ -28,14 +28,12 @@ export type Flag<
 namespace Arguments {
   type SingleDefault = string | number | boolean;
   type PluralDefault = string | number;
-  type Options =
-    | string[]
-    | number[]
-    | ReadonlyArray<string>
-    | ReadonlyArray<number>;
+  type Options = {
+    [T in string | number]: T[] | ReadonlyArray<T>;
+  }[string | number];
   type Description = string;
   type Name = string | readonly [longform: string, shorthand: string];
-  type Negation = string | readonly [longform: string, shorthand: string];
+  type Negation = Name;
 
   export type Single = readonly [
     Name,
