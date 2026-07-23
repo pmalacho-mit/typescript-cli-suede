@@ -4,9 +4,9 @@
 ; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
 ;
 [subrepo]
-	remote = https://github.com/pmalacho-mit/typescript-cli-suede
-	branch = release
-	commit = 2330d7aacd65bfffad111f759765efbaf4aa4546
-	parent = 42997bf1d1a1b7df585d0ef4aa8cf75687323cf8
+	remote = https://github.com/pmalacho-mit/suede.git
+	branch = dependency/release/workflows
+	commit = 7f001f4ce6a63684eccd2c3aff07649d008bcab7
+	parent = df6b19e40959db42608c614c62a9396de27f8653
 	method = merge
 	cmdver = 0.4.9
