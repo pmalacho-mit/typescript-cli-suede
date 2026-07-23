@@ -1,4 +1,26 @@
 /// <reference types="node" />
+/**
+ * typescript-cli-suede — declare a CLI's arguments; get parsing, typing, and
+ * `--help` from the declaration.
+ *
+ * ```ts
+ * const args = cli(
+ *   "Render diagrams.",
+ *   cli.flag(["out", "o"], "Where to write"),        // string | undefined
+ *   cli.flag(["check", "c"], "Check only", false),   // boolean
+ *   cli.flags(["embed", "e"], "Files to embed"),     // string[]
+ * );
+ *
+ * const { out, check, embed } = args;   // flags — by longform name
+ * const files = [...args];              // positional arguments
+ * ```
+ *
+ * A flag's *type* comes from how you declared it: a default makes the value
+ * guaranteed, no default makes it `T | undefined`, `cli.flags` makes it an
+ * array, and an options list narrows it to that union (and is validated at
+ * parse time). See {@link Result.Cli} for how the returned object behaves —
+ * particularly that named properties and iteration expose different things.
+ */
 import { fileURLToPath } from "node:url";
 import { flag, flags, is, type Flag } from "./flag.js";
 
@@ -20,6 +42,13 @@ export class InvalidOptionError extends Error {
 }
 
 export namespace Result {
+  /** The value a flag carries: element type of `options` if present, else the `default`'s type. */
+  type _Value<F> = F extends { options?: (infer T)[] | undefined }
+    ? T
+    : F extends { default?: infer D }
+      ? Exclude<D, undefined>
+      : never;
+
   /**
    * Maps a `Flag` descriptor to the TypeScript type of its parsed value:
    *   - `multiple: true`              → `T[]`  (always an array, never undefined)
@@ -31,25 +60,84 @@ export namespace Result {
    * because `Config["default"]` only affects whether the `default` property is
    * required vs. optional, and `infer Config` cannot invert that.
    */
-  /** The value a flag carries: element type of `options` if present, else the `default`'s type. */
-  type _Value<F> = F extends { options?: (infer T)[] | undefined }
-    ? T
-    : F extends { default?: infer D }
-      ? Exclude<D, undefined>
-      : never;
-
   type _Flag<F extends Flag> = F["multiple"] extends true
     ? _Value<F>[]
     : undefined extends F["default"]
       ? _Value<F> | undefined
       : _Value<F>;
 
-  export type Cli<Flags extends Flag[]> = {
+  /**
+   * One property per flag, keyed by its **longform** name — never its shorthand.
+   * `flag(["out", "o"], …)` is read as `result.out`, not `result.o`.
+   */
+  export type Named<Flags extends Flag[]> = {
     [F in Flags[number] as F["longform"]]: _Flag<F>;
-  } & { readonly [n: number]: string | undefined } & Iterable<string> & {
+  };
+
+  /**
+   * The leftovers: every argument that wasn't a flag or a flag's value, plus
+   * everything after a bare `--`, in the order they were given.
+   *
+   * These are *not* named properties — there is nothing to name them after — so
+   * they are reached by index or by iterating:
+   *
+   *   const files = [...result];   // string[]  ← the usual way
+   *   result[0];                   // string | undefined
+   *   for (const file of result) …
+   *
+   * Array destructuring (`const [first] = result`) works, but inherits
+   * TypeScript's usual blind spot: `first` is typed `string` while an argv with
+   * no positionals hands back `undefined`. Index or spread instead — those are
+   * honest about it.
+   */
+  export interface Positional extends Iterable<string> {
+    readonly [n: number]: string | undefined;
+  }
+
+  /**
+   * What `cli(...)` hands back: flag values as named properties, positional
+   * arguments through iteration, and `help()`.
+   *
+   * ```ts
+   * const result = cli(
+   *   "Do the thing.",
+   *   cli.flag(["out", "o"], "Where to write"),          // string | undefined
+   *   cli.flag(["check", "c"], "Check only", false),     // boolean  (has a default)
+   *   cli.flags(["embed", "e"], "Files to embed"),       // string[] (multiple)
+   * );
+   *
+   * const { out, check, embed } = result;   // named — flags only
+   * const files = [...result];              // positional — everything else
+   * ```
+   *
+   * Given `myscript a.ts --out r.md b.ts --embed x.md -- --literal`:
+   *
+   * | | |
+   * | --- | --- |
+   * | `result.out` | `"r.md"` |
+   * | `result.embed` | `["x.md"]` |
+   * | `result.check` | `false` (from the default) |
+   * | `[...result]` | `["a.ts", "b.ts", "--literal"]` |
+   *
+   * **The two halves do not overlap**, which is the part worth remembering:
+   *
+   * - Spreading with `[...]` (array/iterable spread) yields the *positionals*.
+   * - Spreading with `{...}` yields the *flags* — as do `Object.keys`,
+   *   `JSON.stringify`, and anything else that walks own enumerable properties.
+   *   Positionals are served by a `Proxy`, not stored as properties, so they are
+   *   invisible to all of those.
+   * - There is no `length`, and `Array.isArray` is `false`. Use `[...result]`
+   *   first if you want array methods.
+   *
+   * A flag named `help` — or one whose longform is all digits — would be
+   * shadowed by `help()` and by positional indexing respectively.
+   */
+  export type Cli<Flags extends Flag[]> = Named<Flags> &
+    Positional & {
       /**
-       * Get help text for the CLI, including descriptions of all flags and their default values.
-       * @returns A string containing the help text.
+       * The generated usage text: every flag with its description and default,
+       * plus `-h, --help`. Printing it yourself is useful when you reject the
+       * arguments for a reason the parser can't know about.
        */
       help: () => string;
     };
@@ -271,6 +359,15 @@ const applyDefaults = (
   }
 };
 
+/**
+ * Layers positional access and `help()` over the parsed flag values.
+ *
+ * A `Proxy` rather than extra properties on the object, so the two access
+ * surfaces stay disjoint: `Object.keys` / `{...spread}` / `JSON.stringify` see
+ * only the flags, while indexing and `[...spread]` see only the positionals.
+ * Merging them would mean guessing whether `result[0]` meant a flag or an
+ * argument, and would put `help` into every object spread.
+ */
 const withPositional = <T extends object>(
   values: T,
   positional: string[],
@@ -287,11 +384,29 @@ const withPositional = <T extends object>(
     },
   });
 
+/**
+ * Parse an explicit argv. `cli()` is this with `process.argv.slice(2)` — use
+ * `main` directly to test a CLI without spawning a process.
+ *
+ * Exits the process after printing usage if `--help` / `-h` is present.
+ *
+ * Parsing rules:
+ * - `--flag value`, `--flag=value`, and shorthand `-f value` / `-f=value`.
+ * - Boolean flags take no value; each also accepts a negation form, `--no-<name>`
+ *   unless one was named explicitly.
+ * - Repeatable flags (`cli.flags`) accumulate in order of appearance.
+ * - A bare `--` sends every remaining argument to the positionals, even if it
+ *   looks like a flag.
+ * - Unrecognized `-…` arguments are ignored rather than collected as positional.
+ *
+ * @returns flag values as named properties, positionals via iteration — see
+ * {@link Result.Cli}.
+ */
 export const main = <Flags extends Flag[]>(
   argv: string[],
   description: string,
   flags: [...Flags],
-): Result.Cli<Flags> => {
+) => {
   if (argv.includes("--help") || argv.includes("-h")) {
     console.log(help(description, flags));
     process.exit(0);
@@ -299,21 +414,55 @@ export const main = <Flags extends Flag[]>(
 
   const { values, positional } = parse(argv, flags);
   applyDefaults(values, flags);
+
+  type Expand<T> = T extends infer O ? { [K in keyof O]: O[K] } : never;
+
   return withPositional(
     values as Result.Cli<Flags>,
     positional,
     help.bind(null, description, flags),
-  );
+  ) satisfies Result.Cli<Flags> as unknown as Expand<Result.Cli<Flags>>;
 };
 
+/**
+ * Declare a CLI's arguments and parse `process.argv`.
+ *
+ * ```ts
+ * cli.onEntry(import.meta.url, () => {
+ *   const args = cli(
+ *     "Render diagrams.",
+ *     cli.flag(["out", "o"], "Where to write"),        // string | undefined
+ *     cli.flag(["check", "c"], "Check only", false),   // boolean
+ *     cli.flags(["embed", "e"], "Files to embed"),     // string[]
+ *   );
+ *
+ *   const { out, check, embed } = args;   // flags, by longform name
+ *   const files = [...args];              // positional arguments
+ *   if (files.length === 0) console.error(args.help());
+ * });
+ * ```
+ *
+ * The two ways of reading `args` are disjoint — named properties are flags,
+ * iteration yields positionals. {@link Result.Cli} spells out the details.
+ *
+ * `--help` / `-h` prints usage and exits before this returns.
+ */
 export const cli = Object.assign(
   <const Flags extends Flag[]>(description: string, ...flags: Flags) =>
     main<Flags>(process.argv.slice(2), description, flags),
   {
     flag,
     flags,
+    /**
+     * True when this module is the script node was invoked with — the ESM
+     * equivalent of `require.main === module`. Lets a file be both an importable
+     * module and a runnable command.
+     */
     entry: (import_meta_url: string) =>
       process.argv[1] !== undefined &&
       fileURLToPath(import_meta_url) === process.argv[1],
+    /** {@link cli.entry}, as a guard around the body: runs `callback` only when invoked directly. */
+    onEntry: (import_meta_url: string, callback: () => any) =>
+      cli.entry(import_meta_url) && callback(),
   },
 );
