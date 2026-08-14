@@ -17,11 +17,5 @@ usage() { grep '^#' "$0" | grep -v '^#!/' | sed 's/^# \?//'; exit 0; }
 [[ "${1-}" == "-h" || "${1-}" == "--help" ]] && usage
 
 CORE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SUEDE="${SUEDE:-$CORE_DIR/suede.py}"
 
-[[ -f "$SUEDE" ]] || {
-  printf 'diff: cannot find the installer at %s (set SUEDE to its path)\n' "$SUEDE" >&2
-  exit 1
-}
-
-exec python3 "$SUEDE" diff "$@"
+exec bash "$CORE_DIR/suede" diff "$@"

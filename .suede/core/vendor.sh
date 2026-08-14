@@ -9,6 +9,10 @@
 # local modifications you can neither revert nor upstream - so a .gitrepo
 # pointer would no longer describe what your shipped code depends on.
 #
+# The default destination is the top of release/, beside the code that imports
+# it: a leading dot is unrepresentable in a Python import, so a folder nested
+# under release/.suede/ is reachable in some languages and not in others.
+#
 # Afterwards its .gitrepo ships too, so consumers get a nested subrepo. That is
 # a feature (they can still pull and push it independently) and a sharp edge.
 
@@ -50,12 +54,25 @@ root_entry_for() {
   [[ -d "$backing" && "$backing" != */* ]] && printf '%s\n' "$backing"
 }
 
+# The dependency's own name, which is the one thing that does not depend on how
+# the author arranged their tree: the remote's basename, `.git` stripped. The
+# root entry carries this project's `$repo$SEP` prefix, and that prefix means
+# nothing inside release/ - it announces a release dependency at the root,
+# which is exactly what this folder stops being. It is also the name `suede
+# install --vendor` gives the same folder, so the two ways in agree.
+dependency_name() {
+  local remote
+  remote="$(git config -f "$BACKING/.gitrepo" --get subrepo.remote 2>/dev/null || true)"
+  remote="${remote%/}"; remote="${remote##*[:/]}"; remote="${remote%.git}"
+  printf '%s\n' "${remote:-$(basename "$BACKING")}"
+}
+
 BACKING="$(resolve_backing_folder "$TARGET")"
 [[ -f "$BACKING/.gitrepo" ]] || { printf 'vendor: %s has no .gitrepo\n' "$BACKING" >&2; exit 1; }
 case "$BACKING" in release/*) printf 'vendor: %s is already vendored\n' "$BACKING" >&2; exit 1 ;; esac
 
 ENTRY="$(root_entry_for "$BACKING")"
-DEST="${DEST:-release/.suede/vendor/$(basename "$BACKING")}"
+DEST="${DEST:-release/$(dependency_name)}"
 [[ -e "$DEST" ]] && { printf 'vendor: %s already exists\n' "$DEST" >&2; exit 1; }
 
 mkdir -p "$(dirname "$DEST")"
@@ -65,3 +82,22 @@ git mv "$BACKING" "$DEST"
 printf 'vendor: moved %s -> %s\n' "$BACKING" "$DEST" >&2
 printf '\nFiles referencing the old entry name - review these imports:\n' >&2
 grep -rl -- "${ENTRY:-$BACKING}" release/ 2>/dev/null | grep -v "^$DEST" || printf '  (none)\n' >&2
+
+# Vendored code ships whole, so whatever it imports has to ship with it. Its
+# manifest names each sibling it expects; any that is not beside it now would
+# reach a consumer as a dangling link, which is what `suede check` reports as
+# an escaping edge.
+report_siblings() {
+  local manifest="$DEST/.suede/.dependencies" record entry missing=0
+  [[ -d "$manifest" ]] || return 0
+  for record in "$manifest"/*.gitrepo; do
+    [[ -e "$record" ]] || continue
+    entry="$(basename "$record" .gitrepo)"
+    [[ -e "$(dirname "$DEST")/$entry" ]] && continue
+    [[ $missing -eq 0 ]] && printf '\nSiblings it needs beside it inside release/ - vendor these too:\n' >&2
+    missing=1
+    printf '  %s\n' "$entry" >&2
+  done
+}
+
+report_siblings

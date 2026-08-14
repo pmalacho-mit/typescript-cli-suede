@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+#
+# Runs the suede installer. Everything `check`, `diff`, `list` and `extract` do
+# lives in it:
+#
+#     bash .suede/core/suede list
+#     bash .suede/core/suede check
+#
+# Thin bootstrapper, the same shape as `upstream` on the release side: the real
+# logic is hosted so it can evolve without re-shipping it to every dependency.
+# A fix reaches every repository as soon as it is pushed here, rather than
+# waiting on forty `git subrepo pull`s.
+#
+#   SUEDE_PY   where to fetch it from. A path or a URL, so a test can point at
+#              a local copy, and a fork can point anywhere. Pin a version with
+#              a query: SUEDE_PY='https://suede.sh/suede?ref=v2.0.0'
+#
+# It needs `python3` on PATH. The installer checks its own version and explains
+# itself if it is older than 3.9.
+
+set -euo pipefail
+
+readonly SOURCE="${SUEDE_PY:-https://suede.sh/suede}"
+
+die() { printf 'suede: %s\n' "$*" >&2; exit 1; }
+
+command -v python3 >/dev/null 2>&1 || die "python3 not found"
+
+WORKSPACE="$(mktemp -d)"
+trap 'rm -rf "$WORKSPACE"' EXIT
+
+case "$SOURCE" in
+  http://*|https://*) curl -fsSL "$SOURCE" -o "$WORKSPACE/suede.py" \
+                        || die "could not download the installer from $SOURCE" ;;
+  *)                  cp "$SOURCE" "$WORKSPACE/suede.py" \
+                        || die "no installer at $SOURCE" ;;
+esac
+
+# Not `exec`: the exit code is the contract (see the installer's Exit table)
+# and the trap above still has a workspace to remove.
+STATUS=0
+python3 "$WORKSPACE/suede.py" "$@" || STATUS=$?
+exit "$STATUS"
